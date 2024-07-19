@@ -1,0 +1,19 @@
+python 가상 환경 생성(venv, poetry 등) -> 가상환경 실행
+라이브러리 관련) 
+pip install flask # 플라스크 설치
+pip install flask-migrate # 플라스크 db 확장 모듈 설치 
+pip install flask-wtf # 플라스크 폼 모듈 설치
+pip install email_validator # Email() 검증 사용
+pip install flask-markdown # flask 마크다운 문법 모듈
+
+flask 동작 관련)
+flask run # 서버 실행(루트 디렉토리에서 실행)
+flask db init # 데이터베이스를 관리하는 초기 파일들을 migrations 디렉토리에 자동 생성
+flask db migrate  # 모델을 새로 생성하거나 변경(작업파일이 생성) (장고 makmigrations) -> <리비전 번호>_.py 생성
+flask db upgrade # 모델의 변경 내용을 실제 데이터베이스에 적용할 때 사용(db실제 변경) (장고 migrate) -> db생성
+flasks db heads # migrate작업의 최종 리비전 상태 확인
+flask db current # migrate작업의 현재 리비전 상태 확인, heads와 일치해야 migrate가 가능
+flask db stamp heads # 마지막 migrate작업을 취소, 현재 리비전을 최종 리비전으로 되돌림
+(그 외는 flask db 참조: 다운그레이드 등 다른 기능 존재)
+flask shell # 플라스크 쉘 실행
+
