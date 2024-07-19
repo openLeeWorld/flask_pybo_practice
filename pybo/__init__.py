@@ -1,8 +1,8 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy # flask용 ORM class
 from sqlalchemy import MetaData
-import config
+
 #from flaskext.markdown import Markdown
 
 naming_convention = {
@@ -19,9 +19,16 @@ migrate = Migrate()
 
 from . import models
 
+def page_not_found(e): # e는 오류 내용(템플릿에 e 전달 가능)
+    return render_template('404.html'), 404 # 404 오류 페이지라고 명시
+
+"""
+def server_error(e):
+    return render_template('500.html'), 500 # 500 오류 페이지 명시
+"""
 def create_app():  # application factory
     app = Flask(__name__)  # __name__에는 모듈명이 담김
-    app.config.from_object(config)
+    app.config.from_envvar('APP_CONFIG_FILE') # 환경변수에 담긴 파일을 환경 파일로 사용
 
     # ORM
     db.init_app(app)
@@ -45,6 +52,10 @@ def create_app():  # application factory
     #Markdown(app, extensions=['n12br', 'fenced_code'])
     # nl1br은 줄바꿈 문자를 <br>로 바꿔준다.
     # fenced_code는 코드 표시 기능을 위해 추가했다.
+
+    # 오류 페이지
+    app.register_error_handler(404, page_not_found)
+    #app.register_error_handler(500, server_error)
 
     return app
 

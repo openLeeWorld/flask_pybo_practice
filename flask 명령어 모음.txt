@@ -1,13 +1,16 @@
 python 가상 환경 생성(venv, poetry 등) -> 가상환경 실행
+
 라이브러리 관련) 
 pip install flask # 플라스크 설치
 pip install flask-migrate # 플라스크 db 확장 모듈 설치 
 pip install flask-wtf # 플라스크 폼 모듈 설치
 pip install email_validator # Email() 검증 사용
-pip install flask-markdown # flask 마크다운 문법 모듈
+pip install flask-markdown # flask 마크다운 문법 모듈 -> 2024.7 현재 플라스크 3.0이상과 호환 버그 있음
+pip install gunicorn # 운영환경 wsgi 서버 설치
 
 flask 동작 관련)
 flask run # 서버 실행(루트 디렉토리에서 실행)
+flask run --host=0.0.0.0 # 서버 실행(외부에서 이 서버에 접속할 수 있도록 ip 개방)
 flask db init # 데이터베이스를 관리하는 초기 파일들을 migrations 디렉토리에 자동 생성
 flask db migrate  # 모델을 새로 생성하거나 변경(작업파일이 생성) (장고 makmigrations) -> <리비전 번호>_.py 생성
 flask db upgrade # 모델의 변경 내용을 실제 데이터베이스에 적용할 때 사용(db실제 변경) (장고 migrate) -> db생성
@@ -16,4 +19,82 @@ flask db current # migrate작업의 현재 리비전 상태 확인, heads와 일
 flask db stamp heads # 마지막 migrate작업을 취소, 현재 리비전을 최종 리비전으로 되돌림
 (그 외는 flask db 참조: 다운그레이드 등 다른 기능 존재)
 flask shell # 플라스크 쉘 실행
+
+운영 서버 동작 관련)
+gunicorn --bind unix:/tmp/myproject.sock "pybo:create_app()" # gunicorn 실행, 유닉스 소켓 방식은 ngnix가 wsgi 서버에 접속할 때 필요
+myproject.env 환경변수 파일 생성 후 환경변수 편집(FLASK_DEBUG=FALSE 등)
+/etc/systemd/system/myproject.service 파일 생성 후 다음 내용을 관리자 권한으로 작성  
+
+[Unit]
+Description=gunicorn daemon
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/projects/myproject
+EnvironmentFile=/home/ubuntu/venvs/myproject.env
+ExecStart=/home/ubuntu/venvs/myproject/bin/gunicorn \
+          --workers 2 \
+          --bind unix:/tmp/myproject.sock \
+          "pybo:create_app()"
+[Install]
+WantedBy=multi-user.target
+
+sudo systemctl start myproject.service (status로 start확인, enable로 서버가 다시 시작될 때 Gunicorn을 자동으로 실행하도록 설정, stop이나 restart도 있음)
+sudo apt install -y nginx -> cd /etc/nginx/sites-available -> sudo nano myproejct -> 다음 작성
+
+server {
+        listen 80;
+        server_name <실제 서버 IP나 도메인(등록 후)>;
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+
+        location /static { # 정적 처리 요청
+                alias /home/ubuntu/projects/myproject/pybo/static;
+        }
+
+        location / {
+                include proxy_params;
+                proxy_pass http://unix:/tmp/myproject.sock; # 프록시 패스로 gunicorn으로 동적 요청을 넘김
+        }
+}
+
+-> cd /etc/nginx/sites-enabled -> sudo rm default -> sudo ln -s /etc/nginx/sites-availalble/myproject -> sudo systemctl restart nginx (sudo nginx -t로 설정 파일 오류 확인)
+
+cf) 가상환경 및 환경변수 설정: 윈도우 로컬 cmd파일 만들기 -> 환경변수 path 설정 후 myproject
+@echo off
+cd C:\flask_practice\<git 프로젝트 경로>
+set FLASK_APP=pybo
+set FLASK_DEBUG=true (개발환경, 운영환경시 False)
+set APP_CONFIG_FILE=C:\flask_practice\flask_practice\config\production.py (운영서버 환경파일 설정)
+C:\flask_practice\<가상환경 경로>\Scripts\activate
+
+cf) 가상환경 및 환경변수 설정: 우분투 서버 myproject.sh파일 만들기 -> source myproject
+cd ~/projects/myproject
+export FLASK_APP=pybo
+export FLASK_DEBUG=true (개발환경, 운영환경시 False)
+export APP_CONFIG_FILE=C:\flask_practice\flask_practice\config\production.py (운영서버 환경파일 설정)
+. ~venvs/myproject/bin/activate  
+# 아니면 ~/.profile에 alias myproject='<위 설정>'하고 저장하면 myproject로 바로 설정가능
+
+config.py 파일 -> 개발과 서버 환경에 따라 다르게 설정
+서버에 로깅을 위해 mkdir logs 해주기
+로그 확인: tail -f myproject.log
+
+
+cf) postgresql 연동하기 
+postgresql 서버 올리기
+sudo apt install postgresql-client 
+createdb flask_pybo --username=<dbname> -h <db주소>
+pip install psycopg2-binary
+pip install python-dotenv
+.env 파일 작성)
+DB_NAME=flask_pybo
+DB_USER=dbmasteruser
+DB_HOST=ls-be78fd2cxxxxx614420dxxxxx6b156e2c9.cqlcyugj7ibs.ap-northeast-2.rds.amazonaws.com (db 도메인)
+DB_PASSWORD==<패스워드>
+-> flask db init, migrate, upgrade 후 서비스 restart
+
+
 
